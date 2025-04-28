@@ -1,44 +1,37 @@
 import Foundation
-import HsToolKit
 import stellarsdk
 
 class TransactionSender {
-    private let keyPair: KeyPair
-    private let api: IApi
-    private let logger: Logger?
+    private let accountId: String
 
-    init(keyPair: KeyPair, api: IApi, logger: Logger?) {
-        self.keyPair = keyPair
-        self.api = api
-        self.logger = logger
+    init(accountId: String) {
+        self.accountId = accountId
     }
 }
 
 extension TransactionSender {
-    func sendPayment(asset: Asset, destinationAccountId: String, amount: Decimal, memo: String?) async throws -> String {
+    func paymentOperations(asset: Asset, destinationAccountId: String, amount: Decimal) throws -> [stellarsdk.Operation] {
         guard let asset = stellarsdk.Asset(canonicalForm: asset.id) else {
             throw Kit.SendError.invalidAsset
         }
 
         let operation = try PaymentOperation(
-            sourceAccountId: keyPair.accountId,
+            sourceAccountId: accountId,
             destinationAccountId: destinationAccountId,
             asset: asset,
             amount: amount
         )
 
-        let memo: Memo = memo.map { Memo.text($0) } ?? Memo.none
-
-        return try await api.sendTransaction(keyPair: keyPair, operations: [operation], memo: memo)
+        return [operation]
     }
 
-    func sendTrustline(asset: Asset, limit: Decimal?) async throws -> String {
+    func trustlineOperations(asset: Asset, limit: Decimal?) throws -> [stellarsdk.Operation] {
         guard let asset = ChangeTrustAsset(canonicalForm: asset.id) else {
             throw Kit.SendError.invalidAsset
         }
 
-        let operation = ChangeTrustOperation(sourceAccountId: keyPair.accountId, asset: asset, limit: limit)
+        let operation = ChangeTrustOperation(sourceAccountId: accountId, asset: asset, limit: limit)
 
-        return try await api.sendTransaction(keyPair: keyPair, operations: [operation], memo: Memo.none)
+        return [operation]
     }
 }

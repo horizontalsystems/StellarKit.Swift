@@ -1,16 +1,36 @@
 import Foundation
+import stellarsdk
 
 public enum Asset: Codable, Hashable {
     case native
     case asset(code: String, issuer: String)
 
-    init(id: String) {
-        let components = id.components(separatedBy: ":")
-
-        if components.count == 1 {
+    public init?(id: String) {
+        if id == "native" || id == "XLM" {
             self = .native
+            return
+        }
+
+        let components: [String]
+
+        if id.contains(":") {
+            components = id.components(separatedBy: ":")
         } else {
-            self = .asset(code: components[0], issuer: components[1])
+            components = id.components(separatedBy: "-")
+        }
+
+        if components.count != 2 {
+            return nil
+        }
+
+        let code = components[0].trimmingCharacters(in: .whitespaces)
+        let issuer = components[1].trimmingCharacters(in: .whitespaces)
+
+        do {
+            _ = try PublicKey(accountId: issuer)
+            self = .asset(code: code, issuer: issuer)
+        } catch {
+            return nil
         }
     }
 

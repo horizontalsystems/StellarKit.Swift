@@ -1,9 +1,10 @@
 import Combine
 import Foundation
 import StellarKit
+import stellarsdk
 
 class SendViewModel: ObservableObject {
-    @Published var asset: Asset = .native
+    @Published var asset: StellarKit.Asset = .native
 
     @Published var address: String = Configuration.shared.defaultSendAddress
     @Published var amount: String = "0.25"
@@ -14,18 +15,18 @@ class SendViewModel: ObservableObject {
 
     init() {}
 
-    var assets: [Asset] {
+    var assets: [StellarKit.Asset] {
         guard let stellarKit = Singleton.stellarKit else {
             return []
         }
 
-        return stellarKit.assetBalances.map(\.asset)
+        return Array(stellarKit.assetBalances.keys)
     }
 
     func send() {
         Task { [weak self, asset, address, amount, memo] in
             do {
-                guard let stellarKit = Singleton.stellarKit else {
+                guard let stellarKit = Singleton.stellarKit, let keyPair = Singleton.keyPair else {
                     throw SendError.noKeyPair
                 }
 
@@ -36,9 +37,10 @@ class SendViewModel: ObservableObject {
                 }
 
                 let trimmedMemo = memo.trimmingCharacters(in: .whitespaces)
-                let memo = trimmedMemo.isEmpty ? nil : memo
+                let memo: Memo = trimmedMemo.isEmpty ? .none : .text(memo)
 
-                let txId = try await stellarKit.sendPayment(asset: asset, destinationAccountId: address, amount: decimalAmount, memo: memo)
+                let operations = try stellarKit.paymentOperations(asset: asset, destinationAccountId: address, amount: decimalAmount)
+                let txId = try await StellarKit.Kit.send(operations: operations, memo: memo, keyPair: keyPair, testNet: Configuration.shared.testNet)
 
                 await MainActor.run { [weak self] in
                     self?.sentAlertText = "You have successfully sent \(decimalAmount) \(asset.code) to \(address) (\(txId))"

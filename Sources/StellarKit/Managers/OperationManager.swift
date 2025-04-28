@@ -94,7 +94,7 @@ extension OperationManager {
 
     func assets() -> [Asset] {
         do {
-            return try storage.assetIds().map { Asset(id: $0) }
+            return try storage.assetIds().compactMap { Asset(id: $0) }
         } catch {
             return []
         }

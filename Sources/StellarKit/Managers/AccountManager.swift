@@ -1,3 +1,4 @@
+import Foundation
 import HsExtensions
 import HsToolKit
 
@@ -9,7 +10,7 @@ class AccountManager {
 
     private var tasks = Set<AnyTask>()
 
-    @DistinctPublished private(set) var assetBalances: [AssetBalance]
+    @DistinctPublished private(set) var assetBalances: [Asset: Decimal]
     @DistinctPublished private(set) var syncState: SyncState = .notSynced(
         error: Kit.SyncError.notStarted)
 
@@ -19,7 +20,7 @@ class AccountManager {
         self.storage = storage
         self.logger = logger
 
-        assetBalances = try storage.assetBalances()
+        assetBalances = try storage.assetBalances().reduce(into: [:]) { $0[$1.asset] = $1.balance }
     }
 }
 
@@ -42,7 +43,7 @@ extension AccountManager {
                     message: "Got account asset balances: \(assetBalances.count)"
                 )
 
-                self?.assetBalances = assetBalances
+                self?.assetBalances = assetBalances.reduce(into: [:]) { $0[$1.asset] = $1.balance }
 
                 try? self?.storage.update(assetBalances: assetBalances)
 

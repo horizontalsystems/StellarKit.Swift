@@ -32,7 +32,6 @@ class AppViewModel: ObservableObject {
 
         let stellarKit = try Kit.instance(
             accountId: accountId,
-            keyPair: keyPair,
             testNet: configuration.testNet,
             walletId: accountId,
             minLogLevel: configuration.minLogLevel

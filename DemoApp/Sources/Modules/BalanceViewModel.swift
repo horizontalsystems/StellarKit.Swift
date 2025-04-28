@@ -6,13 +6,13 @@ class BalanceViewModel: ObservableObject {
     private var cancellables = Set<AnyCancellable>()
 
     @Published var syncState: SyncState
-    @Published var assetBalances: [AssetBalance] = []
+    @Published var assetBalances: [Asset: Decimal] = [:]
 
     @Published var transactionSyncState: SyncState
 
     init() {
         syncState = Singleton.stellarKit?.syncState ?? .notSynced(error: AppError.noStellarKit)
-        assetBalances = Singleton.stellarKit?.assetBalances ?? []
+        assetBalances = Singleton.stellarKit?.assetBalances ?? [:]
 
         transactionSyncState =
             Singleton.stellarKit?.operationSyncState ?? .notSynced(error: AppError.noStellarKit)

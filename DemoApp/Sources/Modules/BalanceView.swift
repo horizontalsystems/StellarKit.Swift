@@ -23,13 +23,13 @@ struct BalanceView: View {
                 ScrollView {
                     VStack(spacing: 12) {
                         ForEach(
-                            viewModel.assetBalances.sorted {
-                                $0.asset.code < $1.asset.code
-                            }, id: \.asset.id
-                        ) { assetBalance in
+                            viewModel.assetBalances.keys.sorted {
+                                $0.code < $1.code
+                            }, id: \.id
+                        ) { asset in
                             info(
-                                title: assetBalance.asset.id,
-                                value: "\(assetBalance.balance) \(assetBalance.asset.code)"
+                                title: asset.id,
+                                value: "\(viewModel.assetBalances[asset] ?? 0) \(asset.code)"
                             )
                         }
                     }

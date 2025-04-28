@@ -10,13 +10,13 @@ public class Kit {
 
     private let accountManager: AccountManager
     private let operationManager: OperationManager
-    private let transactionSender: TransactionSender?
+    private let transactionSender: TransactionSender
     private let logger: Logger?
 
     private var cancellables = Set<AnyCancellable>()
     private var tasks = Set<AnyTask>()
 
-    init(accountId: String, accountManager: AccountManager, operationManager: OperationManager, transactionSender: TransactionSender?, logger: Logger?) {
+    init(accountId: String, accountManager: AccountManager, operationManager: OperationManager, transactionSender: TransactionSender, logger: Logger?) {
         self.accountId = accountId
         self.accountManager = accountManager
         self.operationManager = operationManager
@@ -42,11 +42,11 @@ public extension Kit {
         operationManager.$syncState.eraseToAnyPublisher()
     }
 
-    var assetBalances: [AssetBalance] {
+    var assetBalances: [Asset: Decimal] {
         accountManager.assetBalances
     }
 
-    var assetBalancePublisher: AnyPublisher<[AssetBalance], Never> {
+    var assetBalancePublisher: AnyPublisher<[Asset: Decimal], Never> {
         accountManager.$assetBalances.eraseToAnyPublisher()
     }
 
@@ -73,20 +73,16 @@ public extension Kit {
         operationManager.sync()
     }
 
-    func sendPayment(asset: Asset, destinationAccountId: String, amount: Decimal, memo: String?) async throws -> String {
-        guard let transactionSender else {
-            throw SendError.noTransactionSender
-        }
-
-        return try await transactionSender.sendPayment(asset: asset, destinationAccountId: destinationAccountId, amount: amount, memo: memo)
+    func baseFee() async throws -> Decimal {
+        0.0001
     }
 
-    func sendTrustline(asset: Asset, limit: Decimal?) async throws -> String {
-        guard let transactionSender else {
-            throw SendError.noTransactionSender
-        }
+    func paymentOperations(asset: Asset, destinationAccountId: String, amount: Decimal) throws -> [stellarsdk.Operation] {
+        try transactionSender.paymentOperations(asset: asset, destinationAccountId: destinationAccountId, amount: amount)
+    }
 
-        return try await transactionSender.sendTrustline(asset: asset, limit: limit)
+    func trustlineOperations(asset: Asset, limit: Decimal?) throws -> [stellarsdk.Operation] {
+        try transactionSender.trustlineOperations(asset: asset, limit: limit)
     }
 
     static func validate(accountId: String) throws {
@@ -108,7 +104,7 @@ extension Kit {
         }
     }
 
-    public static func instance(accountId: String, keyPair: KeyPair? = nil, testNet: Bool = false, walletId: String, minLogLevel: Logger.Level = .error) throws -> Kit {
+    public static func instance(accountId: String, testNet: Bool = false, walletId: String, minLogLevel: Logger.Level = .error) throws -> Kit {
         let logger = Logger(minLogLevel: minLogLevel)
         let uniqueId = "\(walletId)-\(testNet)"
 
@@ -117,9 +113,7 @@ extension Kit {
 
         let dbPool = try DatabasePool(path: databaseURL.path)
 
-        let sdk = sdk(testNet: testNet)
-
-        let api = StellarApi(sdk: sdk, testNet: testNet)
+        let api = api(testNet: testNet)
 
         let accountStorage = try AccountStorage(dbPool: dbPool)
         let accountManager = try AccountManager(
@@ -131,11 +125,7 @@ extension Kit {
             accountId: accountId, api: api, storage: operationStorage, logger: logger
         )
 
-        var transactionSender: TransactionSender?
-
-        if let keyPair {
-            transactionSender = TransactionSender(keyPair: keyPair, api: api, logger: logger)
-        }
+        let transactionSender = TransactionSender(accountId: accountId)
 
         let kit = Kit(
             accountId: accountId,
@@ -148,8 +138,14 @@ extension Kit {
         return kit
     }
 
-    private static func sdk(testNet: Bool) -> StellarSDK {
-        testNet ? StellarSDK.testNet() : StellarSDK.publicNet()
+    public static func send(operations: [stellarsdk.Operation], memo: Memo = Memo.none, keyPair: KeyPair, testNet: Bool = false) async throws -> String {
+        let api = api(testNet: testNet)
+        return try await api.sendTransaction(keyPair: keyPair, operations: operations, memo: memo)
+    }
+
+    private static func api(testNet: Bool) -> StellarApi {
+        let sdk = testNet ? StellarSDK.testNet() : StellarSDK.publicNet()
+        return StellarApi(sdk: sdk, testNet: testNet)
     }
 
     private static func dataDirectoryUrl() throws -> URL {
