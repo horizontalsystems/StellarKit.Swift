@@ -25,6 +25,10 @@ class BalanceViewModel: ObservableObject {
             self?.assetBalances = $0
         }.store(in: &cancellables)
 
+        Singleton.stellarKit?.addedAssetPublisher.receive(on: DispatchQueue.main).sink { [weak self] in
+            print("Added Assets: \($0.map { $0.code })")
+        }.store(in: &cancellables)
+
         Singleton.stellarKit?.operationSyncStatePublisher.receive(on: DispatchQueue.main).sink {
             [weak self] in self?.transactionSyncState = $0
         }.store(in: &cancellables)

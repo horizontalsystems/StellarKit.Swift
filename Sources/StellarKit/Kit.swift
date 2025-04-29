@@ -50,6 +50,10 @@ public extension Kit {
         accountManager.$assetBalances.eraseToAnyPublisher()
     }
 
+    var addedAssetPublisher: AnyPublisher<[Asset], Never> {
+        accountManager.addedAssetPublisher
+    }
+
     var receiveAddress: String {
         accountId
     }

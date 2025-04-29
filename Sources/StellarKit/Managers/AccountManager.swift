@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import HsExtensions
 import HsToolKit
@@ -13,6 +14,8 @@ class AccountManager {
     @DistinctPublished private(set) var assetBalances: [Asset: Decimal]
     @DistinctPublished private(set) var syncState: SyncState = .notSynced(
         error: Kit.SyncError.notStarted)
+
+    private let addedAssetSubject = PassthroughSubject<[Asset], Never>()
 
     init(accountId: String, api: IApi, storage: AccountStorage, logger: Logger?) throws {
         self.accountId = accountId
@@ -35,7 +38,9 @@ extension AccountManager {
 
         syncState = .syncing
 
-        Task { [weak self, accountId, api] in
+        let oldAssetBalances = assetBalances
+
+        Task { [weak self, accountId, api, oldAssetBalances] in
             do {
                 let assetBalances = try await api.getAccountDetails(accountId: accountId)
                 self?.logger?.log(
@@ -43,15 +48,37 @@ extension AccountManager {
                     message: "Got account asset balances: \(assetBalances.count)"
                 )
 
-                self?.assetBalances = assetBalances.reduce(into: [:]) { $0[$1.asset] = $1.balance }
+                let newAssetBalances = assetBalances.reduce(into: [:]) { $0[$1.asset] = $1.balance }
+
+                self?.assetBalances = newAssetBalances
 
                 try? self?.storage.update(assetBalances: assetBalances)
 
                 self?.syncState = .synced
+
+                var addedAssets = [Asset]()
+
+                for (asset, balance) in newAssetBalances {
+                    if let oldBalance = oldAssetBalances[asset] {
+                        if balance > oldBalance {
+                            addedAssets.append(asset)
+                        }
+                    } else if balance > 0 {
+                        addedAssets.append(asset)
+                    }
+                }
+
+                if !addedAssets.isEmpty {
+                    self?.addedAssetSubject.send(addedAssets)
+                }
             } catch {
                 self?.logger?.log(level: .error, message: "Account sync error: \(error)")
                 self?.syncState = .notSynced(error: error)
             }
         }.store(in: &tasks)
+    }
+
+    var addedAssetPublisher: AnyPublisher<[Asset], Never> {
+        addedAssetSubject.eraseToAnyPublisher()
     }
 }
