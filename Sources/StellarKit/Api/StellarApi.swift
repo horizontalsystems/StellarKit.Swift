@@ -55,11 +55,18 @@ extension StellarApi: IApi {
         case let .success(page):
             return page.records.map { operation in
                 var memo: String?
+                var feeCharged: Decimal?
 
-                if let txMemo = operation.transaction?.memo {
-                    switch txMemo {
-                    case let .text(text): memo = text
-                    default: ()
+                if let transaction = operation.transaction {
+                    if let txMemo = transaction.memo {
+                        switch txMemo {
+                        case let .text(text): memo = text
+                        default: ()
+                        }
+                    }
+
+                    if let txFeeCharged = transaction.feeCharged, let decimal = Decimal(string: txFeeCharged) {
+                        feeCharged = decimal / 10000000
                     }
                 }
 
@@ -70,6 +77,7 @@ extension StellarApi: IApi {
                     transactionHash: operation.transactionHash,
                     transactionSuccessful: operation.transactionSuccessful,
                     memo: memo,
+                    feeCharged: feeCharged,
                     type: .init(operation: operation)
                 )
             }
@@ -126,22 +134,31 @@ extension TxOperation.`Type` {
                 account: op.account
             ))
         case let op as PaymentOperationResponse:
-            let asset: Asset
-
-            switch op.assetType {
-            case AssetTypeAsString.NATIVE:
-                asset = .native
-            default:
-                asset = .asset(code: op.assetCode ?? "", issuer: op.assetIssuer ?? "")
-            }
-
             self = .payment(data: .init(
                 amount: Decimal(string: op.amount) ?? 0,
-                asset: asset,
+                asset: Self.asset(type: op.assetType, code: op.assetCode, issuer: op.assetIssuer),
                 from: op.from,
                 to: op.to
             ))
-        default: self = .unknown(rawType: operation.operationTypeString)
+        case let op as ChangeTrustOperationResponse:
+            self = .changeTrust(data: .init(
+                trustor: op.trustor,
+                trustee: op.trustee,
+                asset: Self.asset(type: op.assetType, code: op.assetCode, issuer: op.assetIssuer),
+                limit: op.limit.flatMap { Decimal(string: $0) } ?? 0,
+                liquidityPoolId: op.liquidityPoolId
+            ))
+        default:
+            self = .unknown(rawType: operation.operationTypeString.components(separatedBy: "_").map(\.capitalized).joined(separator: " "))
+        }
+    }
+
+    private static func asset(type: String, code: String?, issuer: String?) -> Asset {
+        switch type {
+        case AssetTypeAsString.NATIVE:
+            return .native
+        default:
+            return .asset(code: code ?? "", issuer: issuer ?? "")
         }
     }
 }

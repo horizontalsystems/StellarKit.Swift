@@ -34,6 +34,7 @@ class OperationStorage {
                     t.column(TxOperation.Columns.transactionHash.name, .text).notNull()
                     t.column(TxOperation.Columns.transactionSuccessful.name, .boolean).notNull()
                     t.column(TxOperation.Columns.memo.name, .text)
+                    t.column(TxOperation.Columns.feeCharged.name, .text)
                     t.column(TxOperation.Columns.type.name, .text).notNull()
                 }
             )

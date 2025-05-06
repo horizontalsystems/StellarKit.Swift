@@ -14,6 +14,7 @@ public struct TxOperation: Codable {
     public let transactionHash: String
     public let transactionSuccessful: Bool
     public let memo: String?
+    public let feeCharged: Decimal?
     public let type: Type
 
     func tags(accountId: String) -> [Tag] {
@@ -47,6 +48,7 @@ public extension TxOperation {
     enum `Type`: Codable {
         case accountCreated(data: AccountCreated)
         case payment(data: Payment)
+        case changeTrust(data: ChangeTrust)
         case unknown(rawType: String)
     }
 }
@@ -60,6 +62,7 @@ extension TxOperation: FetchableRecord, PersistableRecord {
         static let transactionHash = Column(CodingKeys.transactionHash)
         static let transactionSuccessful = Column(CodingKeys.transactionSuccessful)
         static let memo = Column(CodingKeys.memo)
+        static let feeCharged = Column(CodingKeys.feeCharged)
         static let type = Column(CodingKeys.type)
     }
 }
@@ -76,5 +79,13 @@ public extension TxOperation {
         public let asset: Asset
         public let from: String
         public let to: String
+    }
+
+    struct ChangeTrust: Codable {
+        public let trustor: String
+        public let trustee: String?
+        public let asset: Asset
+        public let limit: Decimal
+        public let liquidityPoolId: String?
     }
 }
