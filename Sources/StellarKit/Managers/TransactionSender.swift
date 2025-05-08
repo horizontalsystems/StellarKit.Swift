@@ -10,28 +10,24 @@ class TransactionSender {
 }
 
 extension TransactionSender {
-    func paymentOperations(asset: Asset, destinationAccountId: String, amount: Decimal) throws -> [stellarsdk.Operation] {
+    func paymentOperation(asset: Asset, destinationAccountId: String, amount: Decimal) throws -> stellarsdk.Operation {
         guard let asset = stellarsdk.Asset(canonicalForm: asset.id) else {
             throw Kit.SendError.invalidAsset
         }
 
-        let operation = try PaymentOperation(
+        return try PaymentOperation(
             sourceAccountId: accountId,
             destinationAccountId: destinationAccountId,
             asset: asset,
             amount: amount
         )
-
-        return [operation]
     }
 
-    func trustlineOperations(asset: Asset, limit: Decimal?) throws -> [stellarsdk.Operation] {
+    func changeTrustOperation(asset: Asset, limit: Decimal?) throws -> stellarsdk.Operation {
         guard let asset = ChangeTrustAsset(canonicalForm: asset.id) else {
             throw Kit.SendError.invalidAsset
         }
 
-        let operation = ChangeTrustOperation(sourceAccountId: accountId, asset: asset, limit: limit)
-
-        return [operation]
+        return ChangeTrustOperation(sourceAccountId: accountId, asset: asset, limit: limit)
     }
 }

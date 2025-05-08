@@ -48,6 +48,13 @@ public enum Asset: Codable, Hashable {
         }
     }
 
+    public var issuer: String? {
+        switch self {
+        case .native: return nil
+        case let .asset(_, issuer): return issuer
+        }
+    }
+
     public var id: String {
         switch self {
         case .native: return "native"

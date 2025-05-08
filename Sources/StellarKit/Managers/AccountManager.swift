@@ -11,7 +11,7 @@ class AccountManager {
 
     private var tasks = Set<AnyTask>()
 
-    @DistinctPublished private(set) var assetBalances: [Asset: Decimal]
+    @DistinctPublished private(set) var account: Account?
     @DistinctPublished private(set) var syncState: SyncState = .notSynced(
         error: Kit.SyncError.notStarted)
 
@@ -23,7 +23,7 @@ class AccountManager {
         self.storage = storage
         self.logger = logger
 
-        assetBalances = try storage.assetBalances().reduce(into: [:]) { $0[$1.asset] = $1.balance }
+        account = try storage.account()
     }
 }
 
@@ -38,32 +38,35 @@ extension AccountManager {
 
         syncState = .syncing
 
-        let oldAssetBalances = assetBalances
+        let oldAssetBalanceMap = account?.assetBalanceMap ?? [:]
 
-        Task { [weak self, accountId, api, oldAssetBalances] in
+        Task { [weak self, accountId, api, oldAssetBalanceMap] in
             do {
-                let assetBalances = try await api.getAccountDetails(accountId: accountId)
+                let account = try await api.getAccountDetails(accountId: accountId)
+
                 self?.logger?.log(
                     level: .debug,
-                    message: "Got account asset balances: \(assetBalances.count)"
+                    message: "Got account: \(account.map { "[subentryCount: \($0.subentryCount)] [asset balances: \($0.assetBalanceMap.count)]" } ?? "nil")"
                 )
 
-                let newAssetBalances = assetBalances.reduce(into: [:]) { $0[$1.asset] = $1.balance }
+                let newAssetBalanceMap = account?.assetBalanceMap ?? [:]
 
-                self?.assetBalances = newAssetBalances
+                self?.account = account
 
-                try? self?.storage.update(assetBalances: assetBalances)
+                if let account {
+                    try? self?.storage.update(account: account)
+                }
 
                 self?.syncState = .synced
 
                 var addedAssets = [Asset]()
 
-                for (asset, balance) in newAssetBalances {
-                    if let oldBalance = oldAssetBalances[asset] {
-                        if balance > oldBalance {
+                for (asset, assetBalance) in newAssetBalanceMap {
+                    if let oldAssetBalance = oldAssetBalanceMap[asset] {
+                        if assetBalance.balance > oldAssetBalance.balance {
                             addedAssets.append(asset)
                         }
-                    } else if balance > 0 {
+                    } else if assetBalance.balance > 0 {
                         addedAssets.append(asset)
                     }
                 }

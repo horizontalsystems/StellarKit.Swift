@@ -42,12 +42,12 @@ public extension Kit {
         operationManager.$syncState.eraseToAnyPublisher()
     }
 
-    var assetBalances: [Asset: Decimal] {
-        accountManager.assetBalances
+    var account: Account? {
+        accountManager.account
     }
 
-    var assetBalancePublisher: AnyPublisher<[Asset: Decimal], Never> {
-        accountManager.$assetBalances.eraseToAnyPublisher()
+    var accountPublisher: AnyPublisher<Account?, Never> {
+        accountManager.$account.eraseToAnyPublisher()
     }
 
     var addedAssetPublisher: AnyPublisher<[Asset], Never> {
@@ -78,15 +78,15 @@ public extension Kit {
     }
 
     func baseFee() async throws -> Decimal {
-        0.0001
+        1000 / 10_000_000
     }
 
-    func paymentOperations(asset: Asset, destinationAccountId: String, amount: Decimal) throws -> [stellarsdk.Operation] {
-        try transactionSender.paymentOperations(asset: asset, destinationAccountId: destinationAccountId, amount: amount)
+    func paymentOperation(asset: Asset, destinationAccountId: String, amount: Decimal) throws -> stellarsdk.Operation {
+        try transactionSender.paymentOperation(asset: asset, destinationAccountId: destinationAccountId, amount: amount)
     }
 
-    func trustlineOperations(asset: Asset, limit: Decimal?) throws -> [stellarsdk.Operation] {
-        try transactionSender.trustlineOperations(asset: asset, limit: limit)
+    func changeTrustOperation(asset: Asset, limit: Decimal?) throws -> stellarsdk.Operation {
+        try transactionSender.changeTrustOperation(asset: asset, limit: limit)
     }
 
     static func validate(accountId: String) throws {
@@ -94,8 +94,8 @@ public extension Kit {
     }
 }
 
-extension Kit {
-    public static func clear(exceptFor excludedFiles: [String]) throws {
+public extension Kit {
+    static func clear(exceptFor excludedFiles: [String]) throws {
         let fileManager = FileManager.default
         let fileUrls = try fileManager.contentsOfDirectory(
             at: dataDirectoryUrl(), includingPropertiesForKeys: nil
@@ -108,7 +108,7 @@ extension Kit {
         }
     }
 
-    public static func instance(accountId: String, testNet: Bool = false, walletId: String, minLogLevel: Logger.Level = .error) throws -> Kit {
+    static func instance(accountId: String, testNet: Bool = false, walletId: String, minLogLevel: Logger.Level = .error) throws -> Kit {
         let logger = Logger(minLogLevel: minLogLevel)
         let uniqueId = "\(walletId)-\(testNet)"
 
@@ -142,7 +142,7 @@ extension Kit {
         return kit
     }
 
-    public static func send(operations: [stellarsdk.Operation], memo: Memo = Memo.none, keyPair: KeyPair, testNet: Bool = false) async throws -> String {
+    static func send(operations: [stellarsdk.Operation], memo: Memo = Memo.none, keyPair: KeyPair, testNet: Bool = false) async throws -> String {
         let api = api(testNet: testNet)
         return try await api.sendTransaction(keyPair: keyPair, operations: operations, memo: memo)
     }

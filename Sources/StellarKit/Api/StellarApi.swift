@@ -14,12 +14,12 @@ class StellarApi {
 }
 
 extension StellarApi: IApi {
-    func getAccountDetails(accountId: String) async throws -> [AssetBalance] {
+    func getAccountDetails(accountId: String) async throws -> Account? {
         let response = await sdk.accounts.getAccountDetails(accountId: accountId)
 
         switch response {
         case let .success(accountDetails):
-            return accountDetails.balances.compactMap { balance -> AssetBalance? in
+            let assetBalances = accountDetails.balances.compactMap { balance -> AssetBalance? in
                 guard let decimalBalance = Decimal(string: balance.balance) else {
                     return nil
                 }
@@ -37,11 +37,22 @@ extension StellarApi: IApi {
                     }
                 }
 
-                return AssetBalance(asset: asset, balance: decimalBalance)
+                return AssetBalance(asset: asset, balance: decimalBalance, limit: balance.limit.flatMap { Decimal(string: $0) })
             }
+
+            return Account(
+                subentryCount: accountDetails.subentryCount,
+                assetBalanceMap: assetBalances.reduce(into: [:]) { $0[$1.asset] = $1 }
+            )
         case let .failure(error):
             StellarSDKLog.printHorizonRequestErrorMessage(tag: "account details", horizonRequestError: error)
-            throw error
+
+            switch error {
+            case .notFound:
+                return nil
+            default:
+                throw error
+            }
         }
     }
 
@@ -66,7 +77,7 @@ extension StellarApi: IApi {
                     }
 
                     if let txFeeCharged = transaction.feeCharged, let decimal = Decimal(string: txFeeCharged) {
-                        feeCharged = decimal / 10000000
+                        feeCharged = decimal / 10_000_000
                     }
                 }
 

@@ -72,6 +72,13 @@ struct OperationView: View {
                                 info(title: "Asset", value: "\(data.asset.id)")
                                 info(title: "From", value: "\(data.from)")
                                 info(title: "To", value: "\(data.to)")
+                            case let .changeTrust(data):
+                                actionTitle(text: "Change Trust")
+                                info(title: "Trustor", value: "\(data.trustor)")
+                                info(title: "Trustee", value: "\(data.trustee ?? "nil")")
+                                info(title: "Asset", value: "\(data.asset.id)")
+                                info(title: "Limit", value: "\(data.limit)")
+                                info(title: "Liquidity Pool Id", value: "\(data.liquidityPoolId ?? "nil")")
                             case let .unknown(rawType):
                                 actionTitle(text: rawType)
                             }

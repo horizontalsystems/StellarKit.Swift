@@ -20,7 +20,7 @@ class SendViewModel: ObservableObject {
             return []
         }
 
-        return Array(stellarKit.assetBalances.keys)
+        return stellarKit.account.map { Array($0.assetBalanceMap.keys) } ?? []
     }
 
     func send() {
@@ -30,10 +30,18 @@ class SendViewModel: ObservableObject {
                     throw SendError.noKeyPair
                 }
 
+                guard let account = stellarKit.account else {
+                    throw SendError.noAccount
+                }
+
                 try StellarKit.Kit.validate(accountId: address)
 
                 guard let decimalAmount = Decimal(string: amount) else {
                     throw SendError.invalidAmount
+                }
+
+                guard decimalAmount <= account.availableBalance else {
+                    throw SendError.moreThanAvailableBalance
                 }
 
                 let trimmedMemo = memo.trimmingCharacters(in: .whitespaces)
@@ -57,6 +65,8 @@ class SendViewModel: ObservableObject {
 extension SendViewModel {
     enum SendError: Error {
         case noKeyPair
+        case noAccount
         case invalidAmount
+        case moreThanAvailableBalance
     }
 }

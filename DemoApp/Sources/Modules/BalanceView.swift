@@ -18,23 +18,30 @@ struct BalanceView: View {
                     value: viewModel.transactionSyncState.description
                 )
 
-                Divider()
+                if let account = viewModel.account {
+                    info(title: "Subentry Count", value: String(account.subentryCount))
+                    info(title: "Locked Balance", value: "\(account.lockedBalance) XLM")
 
-                ScrollView {
-                    VStack(spacing: 12) {
-                        ForEach(
-                            viewModel.assetBalances.keys.sorted {
-                                $0.code < $1.code
-                            }, id: \.id
-                        ) { asset in
-                            info(
-                                title: asset.id,
-                                value: "\(viewModel.assetBalances[asset] ?? 0) \(asset.code)"
-                            )
+                    Divider()
+
+                    ScrollView {
+                        VStack(spacing: 12) {
+                            ForEach(
+                                account.assetBalanceMap.keys.sorted {
+                                    $0.code < $1.code
+                                }, id: \.id
+                            ) { asset in
+                                info(
+                                    title: asset.id,
+                                    value: "\(account.assetBalanceMap[asset]?.balance ?? 0) \(asset.code)"
+                                )
+                            }
                         }
                     }
+                    .frame(maxHeight: .infinity)
+                } else {
+                    Spacer()
                 }
-                .frame(maxHeight: .infinity)
             }
             .padding()
             .navigationTitle("Balance")

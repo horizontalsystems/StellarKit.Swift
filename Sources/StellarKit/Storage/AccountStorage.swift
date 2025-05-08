@@ -13,10 +13,11 @@ class AccountStorage {
     var migrator: DatabaseMigrator {
         var migrator = DatabaseMigrator()
 
-        migrator.registerMigration("Create assetBalance") { db in
-            try db.create(table: "assetBalance", body: { t in
-                t.primaryKey(AssetBalance.Columns.asset.name, .text, onConflict: .replace)
-                t.column(AssetBalance.Columns.balance.name, .text).notNull()
+        migrator.registerMigration("Create account") { db in
+            try db.create(table: "account", body: { t in
+                t.primaryKey(Account.Columns.uniqueId.name, .text, onConflict: .replace)
+                t.column(Account.Columns.subentryCount.name, .integer).notNull()
+                t.column(Account.Columns.assetBalanceMap.name, .text).notNull()
             })
         }
 
@@ -25,19 +26,15 @@ class AccountStorage {
 }
 
 extension AccountStorage {
-    func assetBalances() throws -> [AssetBalance] {
+    func account() throws -> Account? {
         try dbPool.read { db in
-            try AssetBalance.fetchAll(db)
+            try Account.fetchOne(db)
         }
     }
 
-    func update(assetBalances: [AssetBalance]) throws {
+    func update(account: Account) throws {
         _ = try dbPool.write { db in
-            try AssetBalance.deleteAll(db)
-
-            for assetBalance in assetBalances {
-                try assetBalance.insert(db)
-            }
+            try account.insert(db)
         }
     }
 }
