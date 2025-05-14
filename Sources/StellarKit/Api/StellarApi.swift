@@ -1,3 +1,4 @@
+import Combine
 import Foundation
 import stellarsdk
 
@@ -5,11 +6,46 @@ class StellarApi {
     private let sdk: StellarSDK
     private let testNet: Bool
 
+    private let operationSubject = PassthroughSubject<TxOperation, Never>()
+
     private var streamItem: OperationsStreamItem?
 
     init(sdk: StellarSDK, testNet: Bool) {
         self.sdk = sdk
         self.testNet = testNet
+    }
+
+    private func handle(operationResponse: OperationResponse) {
+        operationSubject.send(txOperation(operationResponse: operationResponse))
+    }
+
+    private func txOperation(operationResponse operation: OperationResponse) -> TxOperation {
+        var memo: String?
+        var feeCharged: Decimal?
+
+        if let transaction = operation.transaction {
+            if let txMemo = transaction.memo {
+                switch txMemo {
+                case let .text(text): memo = text
+                default: ()
+                }
+            }
+
+            if let txFeeCharged = transaction.feeCharged, let decimal = Decimal(string: txFeeCharged) {
+                feeCharged = decimal / 10_000_000
+            }
+        }
+
+        return TxOperation(
+            id: operation.id, createdAt: operation.createdAt,
+            pagingToken: operation.pagingToken,
+            sourceAccount: operation.sourceAccount,
+            transactionHash: operation.transactionHash,
+            transactionSuccessful: operation.transactionSuccessful,
+            memo: memo,
+            feeCharged: feeCharged,
+            type: .init(operation: operation)
+        )
     }
 }
 
@@ -64,33 +100,8 @@ extension StellarApi: IApi {
 
         switch response {
         case let .success(page):
-            return page.records.map { operation in
-                var memo: String?
-                var feeCharged: Decimal?
-
-                if let transaction = operation.transaction {
-                    if let txMemo = transaction.memo {
-                        switch txMemo {
-                        case let .text(text): memo = text
-                        default: ()
-                        }
-                    }
-
-                    if let txFeeCharged = transaction.feeCharged, let decimal = Decimal(string: txFeeCharged) {
-                        feeCharged = decimal / 10_000_000
-                    }
-                }
-
-                return TxOperation(
-                    id: operation.id, createdAt: operation.createdAt,
-                    pagingToken: operation.pagingToken,
-                    sourceAccount: operation.sourceAccount,
-                    transactionHash: operation.transactionHash,
-                    transactionSuccessful: operation.transactionSuccessful,
-                    memo: memo,
-                    feeCharged: feeCharged,
-                    type: .init(operation: operation)
-                )
+            return page.records.map { operationResponse in
+                txOperation(operationResponse: operationResponse)
             }
         case let .failure(error):
             StellarSDKLog.printHorizonRequestErrorMessage(tag: "operations", horizonRequestError: error)
@@ -126,6 +137,35 @@ extension StellarApi: IApi {
             StellarSDKLog.printHorizonRequestErrorMessage(tag: "send transaction", horizonRequestError: error)
             throw error
         }
+    }
+}
+
+extension StellarApi: IApiListener {
+    func start(accountId: String) {
+        streamItem = sdk.operations.stream(for: .operationsForAccount(account: accountId, cursor: "now"))
+
+        streamItem?.onReceive { [weak self] response in
+            switch response {
+            case .open:
+                break
+            case let .response(_, operationResponse):
+                self?.handle(operationResponse: operationResponse)
+            case let .error(err):
+                print(err?.localizedDescription ?? "Stream Error")
+
+                self?.stop()
+                self?.start(accountId: accountId)
+            }
+        }
+    }
+
+    func stop() {
+        streamItem?.closeStream()
+        streamItem = nil
+    }
+
+    var operationPublisher: AnyPublisher<TxOperation, Never> {
+        operationSubject.eraseToAnyPublisher()
     }
 }
 

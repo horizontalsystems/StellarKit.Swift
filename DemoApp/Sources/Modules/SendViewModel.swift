@@ -47,8 +47,8 @@ class SendViewModel: ObservableObject {
                 let trimmedMemo = memo.trimmingCharacters(in: .whitespaces)
                 let memo: Memo = trimmedMemo.isEmpty ? .none : .text(memo)
 
-                let operations = try stellarKit.paymentOperations(asset: asset, destinationAccountId: address, amount: decimalAmount)
-                let txId = try await StellarKit.Kit.send(operations: operations, memo: memo, keyPair: keyPair, testNet: Configuration.shared.testNet)
+                let operation = try stellarKit.paymentOperation(asset: asset, destinationAccountId: address, amount: decimalAmount)
+                let txId = try await StellarKit.Kit.send(operations: [operation], memo: memo, keyPair: keyPair, testNet: Configuration.shared.testNet)
 
                 await MainActor.run { [weak self] in
                     self?.sentAlertText = "You have successfully sent \(decimalAmount) \(asset.code) to \(address) (\(txId))"

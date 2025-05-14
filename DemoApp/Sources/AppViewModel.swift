@@ -38,6 +38,7 @@ class AppViewModel: ObservableObject {
         )
 
         stellarKit.sync()
+        stellarKit.startListener()
 
         Singleton.stellarKit = stellarKit
         Singleton.keyPair = keyPair

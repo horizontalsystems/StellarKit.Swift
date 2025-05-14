@@ -8,6 +8,7 @@ import stellarsdk
 public class Kit {
     private let accountId: String
 
+    private let apiListener: IApiListener
     private let accountManager: AccountManager
     private let operationManager: OperationManager
     private let transactionSender: TransactionSender
@@ -16,12 +17,17 @@ public class Kit {
     private var cancellables = Set<AnyCancellable>()
     private var tasks = Set<AnyTask>()
 
-    init(accountId: String, accountManager: AccountManager, operationManager: OperationManager, transactionSender: TransactionSender, logger: Logger?) {
+    init(accountId: String, apiListener: IApiListener, accountManager: AccountManager, operationManager: OperationManager, transactionSender: TransactionSender, logger: Logger?) {
         self.accountId = accountId
+        self.apiListener = apiListener
         self.accountManager = accountManager
         self.operationManager = operationManager
         self.transactionSender = transactionSender
         self.logger = logger
+
+        apiListener.operationPublisher
+            .sink { [weak self] _ in self?.sync() }
+            .store(in: &cancellables)
     }
 }
 
@@ -75,6 +81,14 @@ public extension Kit {
     func sync() {
         accountManager.sync()
         operationManager.sync()
+    }
+
+    func startListener() {
+        apiListener.start(accountId: accountId)
+    }
+
+    func stopListener() {
+        apiListener.stop()
     }
 
     func baseFee() async throws -> Decimal {
@@ -133,6 +147,7 @@ public extension Kit {
 
         let kit = Kit(
             accountId: accountId,
+            apiListener: api,
             accountManager: accountManager,
             operationManager: operationManager,
             transactionSender: transactionSender,

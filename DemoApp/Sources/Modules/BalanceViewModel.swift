@@ -26,7 +26,7 @@ class BalanceViewModel: ObservableObject {
         }.store(in: &cancellables)
 
         Singleton.stellarKit?.addedAssetPublisher.receive(on: DispatchQueue.main).sink {
-            print("Added Assets: \($0.map { $0.code })")
+            print("Added Assets: \($0.map(\.code))")
         }.store(in: &cancellables)
 
         Singleton.stellarKit?.operationSyncStatePublisher.receive(on: DispatchQueue.main).sink {
