@@ -11,5 +11,6 @@ protocol IApi {
 protocol IApiListener {
     func start(accountId: String)
     func stop()
+    var started: Bool { get }
     var operationPublisher: AnyPublisher<TxOperation, Never> { get }
 }

@@ -17,6 +17,8 @@ public class Kit {
     private var cancellables = Set<AnyCancellable>()
     private var tasks = Set<AnyTask>()
 
+    private var started = false
+
     init(accountId: String, apiListener: IApiListener, accountManager: AccountManager, operationManager: OperationManager, transactionSender: TransactionSender, logger: Logger?) {
         self.accountId = accountId
         self.apiListener = apiListener
@@ -28,6 +30,16 @@ public class Kit {
         apiListener.operationPublisher
             .sink { [weak self] _ in self?.sync() }
             .store(in: &cancellables)
+
+        accountManager.$account
+            .sink { [weak self] in self?.handle(account: $0) }
+            .store(in: &cancellables)
+    }
+
+    private func handle(account: Account?) {
+        if started, !apiListener.started, account != nil {
+            apiListener.start(accountId: accountId)
+        }
     }
 }
 
@@ -84,10 +96,15 @@ public extension Kit {
     }
 
     func startListener() {
-        apiListener.start(accountId: accountId)
+        started = true
+
+        if account != nil {
+            apiListener.start(accountId: accountId)
+        }
     }
 
     func stopListener() {
+        started = false
         apiListener.stop()
     }
 

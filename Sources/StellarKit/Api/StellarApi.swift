@@ -15,6 +15,10 @@ class StellarApi {
         self.testNet = testNet
     }
 
+    deinit {
+        streamItem?.closeStream()
+    }
+
     private func handle(operationResponse: OperationResponse) {
         operationSubject.send(txOperation(operationResponse: operationResponse))
     }
@@ -151,10 +155,10 @@ extension StellarApi: IApiListener {
             case let .response(_, operationResponse):
                 self?.handle(operationResponse: operationResponse)
             case let .error(err):
-                print(err?.localizedDescription ?? "Stream Error")
+                print("Stream Error (\(accountId)): \(err?.localizedDescription ?? "nil")")
 
-                self?.stop()
-                self?.start(accountId: accountId)
+                // self?.stop()
+                // self?.start(accountId: accountId)
             }
         }
     }
@@ -162,6 +166,10 @@ extension StellarApi: IApiListener {
     func stop() {
         streamItem?.closeStream()
         streamItem = nil
+    }
+
+    var started: Bool {
+        streamItem != nil
     }
 
     var operationPublisher: AnyPublisher<TxOperation, Never> {
