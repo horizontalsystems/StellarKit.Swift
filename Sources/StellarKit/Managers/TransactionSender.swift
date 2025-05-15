@@ -10,6 +10,14 @@ class TransactionSender {
 }
 
 extension TransactionSender {
+    func createAccountOperation(destinationAccountId: String, amount: Decimal) throws -> stellarsdk.Operation {
+        try CreateAccountOperation(
+            sourceAccountId: accountId,
+            destinationAccountId: destinationAccountId,
+            startBalance: amount
+        )
+    }
+
     func paymentOperation(asset: Asset, destinationAccountId: String, amount: Decimal) throws -> stellarsdk.Operation {
         guard let asset = stellarsdk.Asset(canonicalForm: asset.id) else {
             throw Kit.SendError.invalidAsset

@@ -112,6 +112,10 @@ public extension Kit {
         1000 / 10_000_000
     }
 
+    func createAccountOperation(destinationAccountId: String, amount: Decimal) throws -> stellarsdk.Operation {
+        try transactionSender.createAccountOperation(destinationAccountId: destinationAccountId, amount: amount)
+    }
+
     func paymentOperation(asset: Asset, destinationAccountId: String, amount: Decimal) throws -> stellarsdk.Operation {
         try transactionSender.paymentOperation(asset: asset, destinationAccountId: destinationAccountId, amount: amount)
     }
@@ -179,7 +183,12 @@ public extension Kit {
         return try await api.sendTransaction(keyPair: keyPair, operations: operations, memo: memo)
     }
 
-    private static func api(testNet: Bool) -> StellarApi {
+    static func account(accountId: String, testNet: Bool = false) async throws -> Account? {
+        let api = api(testNet: testNet)
+        return try await api.getAccountDetails(accountId: accountId)
+    }
+
+    private static func api(testNet: Bool) -> IApi & IApiListener {
         let sdk = testNet ? StellarSDK.testNet() : StellarSDK.publicNet()
         return StellarApi(sdk: sdk, testNet: testNet)
     }
