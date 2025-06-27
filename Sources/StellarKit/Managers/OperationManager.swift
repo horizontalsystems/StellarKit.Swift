@@ -51,9 +51,9 @@ extension OperationManager {
         }
     }
 
-    func operations(tagQuery: TagQuery, pagingToken: String?, limit: Int?) -> [TxOperation] {
+    func operations(tagQuery: TagQuery, pagingToken: String?, descending: Bool, limit: Int?) -> [TxOperation] {
         do {
-            return try storage.operations(tagQuery: tagQuery, pagingToken: pagingToken, limit: limit ?? 100)
+            return try storage.operations(tagQuery: tagQuery, pagingToken: pagingToken, descending: descending, limit: limit ?? 100)
         } catch {
             return []
         }

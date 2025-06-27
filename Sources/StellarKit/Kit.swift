@@ -76,10 +76,10 @@ public extension Kit {
         accountId
     }
 
-    func operations(tagQuery: TagQuery, pagingToken: String? = nil, limit: Int? = nil)
+    func operations(tagQuery: TagQuery, pagingToken: String? = nil, descending: Bool, limit: Int? = nil)
         -> [TxOperation]
     {
-        operationManager.operations(tagQuery: tagQuery, pagingToken: pagingToken, limit: limit)
+        operationManager.operations(tagQuery: tagQuery, pagingToken: pagingToken, descending: descending, limit: limit)
     }
 
     func operationPublisher(tagQuery: TagQuery) -> AnyPublisher<OperationInfo, Never> {

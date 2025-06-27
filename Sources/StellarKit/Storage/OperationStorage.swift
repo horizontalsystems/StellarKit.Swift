@@ -63,7 +63,7 @@ extension OperationStorage {
         }
     }
 
-    func operations(tagQuery: TagQuery, pagingToken: String?, limit: Int) throws -> [TxOperation] {
+    func operations(tagQuery: TagQuery, pagingToken: String?, descending: Bool, limit: Int?) throws -> [TxOperation] {
         try dbPool.read { db in
             var arguments = [DatabaseValueConvertible]()
             var whereConditions = [String]()
@@ -87,12 +87,15 @@ extension OperationStorage {
             }
 
             if let pagingToken {
-                whereConditions.append("txOperation.\(TxOperation.Columns.pagingToken.name) < ?")
+                whereConditions.append("txOperation.\(TxOperation.Columns.pagingToken.name) \(descending ? "<" : ">") ?")
                 arguments.append(pagingToken)
             }
 
-            let limitClause = "LIMIT \(limit)"
-            let orderClause = "ORDER BY txOperation.\(TxOperation.Columns.pagingToken.name) DESC"
+            var limitClause = ""
+            if let limit {
+                limitClause = "LIMIT \(limit)"
+            }
+            let orderClause = "ORDER BY txOperation.\(TxOperation.Columns.pagingToken.name) \(descending ? "DESC" : "ASC")"
             let whereClause = whereConditions.count > 0 ? "WHERE \(whereConditions.joined(separator: " AND "))" : ""
 
             let sql = """
