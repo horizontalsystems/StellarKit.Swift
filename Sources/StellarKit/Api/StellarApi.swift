@@ -124,19 +124,23 @@ extension StellarApi: IApi {
                 memo: memo
             )
 
-            try transaction.sign(keyPair: keyPair, network: testNet ? Network.testnet : Network.public)
+            return try await send(keyPair: keyPair, transaction: transaction)
+        case let .failure(error):
+            StellarSDKLog.printHorizonRequestErrorMessage(tag: "send transaction", horizonRequestError: error)
+            throw error
+        }
+    }
 
-            let response = await sdk.transactions.submitTransaction(transaction: transaction)
+    func send(keyPair: KeyPair, transaction: Transaction) async throws -> String {
+        try transaction.sign(keyPair: keyPair, network: testNet ? Network.testnet : Network.public)
 
-            switch response {
-            case let .success(details):
-                return details.id
-            case let .destinationRequiresMemo(destinationAccountId):
-                throw SendError.destinationRequiresMemo(destinationAccountId: destinationAccountId)
-            case let .failure(error):
-                StellarSDKLog.printHorizonRequestErrorMessage(tag: "send transaction", horizonRequestError: error)
-                throw error
-            }
+        let response = await sdk.transactions.submitTransaction(transaction: transaction)
+
+        switch response {
+        case let .success(details):
+            return details.id
+        case let .destinationRequiresMemo(destinationAccountId):
+            throw SendError.destinationRequiresMemo(destinationAccountId: destinationAccountId)
         case let .failure(error):
             StellarSDKLog.printHorizonRequestErrorMessage(tag: "send transaction", horizonRequestError: error)
             throw error

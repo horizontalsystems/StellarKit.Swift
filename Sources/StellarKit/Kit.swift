@@ -182,6 +182,40 @@ public extension Kit {
         let api = api(testNet: testNet)
         return try await api.sendTransaction(keyPair: keyPair, operations: operations, memo: memo)
     }
+    
+    static func send(transaction: Transaction, keyPair: KeyPair, testNet: Bool = false) async throws -> String {
+        let api = api(testNet: testNet)
+        return try await api.send(keyPair: keyPair, transaction: transaction)
+    }
+    
+    static func send(transactionEnvelope: String, keyPair: KeyPair, testNet: Bool = false) async throws -> String {
+        let transaction = try Transaction.init(envelopeXdr: transactionEnvelope)
+        return try await send(transaction: transaction, keyPair: keyPair, testNet: testNet)
+    }
+    
+    static func sign(transactionEnvelope: String, keyPair: KeyPair, testNet: Bool = false) throws -> String {
+        let transaction = try Transaction.init(envelopeXdr: transactionEnvelope)
+
+        let network = testNet ? Network.testnet : Network.public
+        try transaction.sign(keyPair: keyPair, network: network)
+        
+        guard let encoded = try transaction.transactionXDR.toEnvelopeXDR().xdrEncoded else {
+            throw SignError.cantEncodeBase64
+        }
+        
+        return encoded
+    }
+
+    func transaction(transactionEnvelope: String) throws -> Transaction {
+        return try Transaction(envelopeXdr: transactionEnvelope)
+    }
+    
+    func estimateFee(transactionEnvelope: String) throws -> Int {
+        let envelope = try TransactionEnvelopeXDR(fromBase64: transactionEnvelope)
+        let fee = envelope.txFee
+        
+        return Int(fee)
+    }
 
     static func account(accountId: String, testNet: Bool = false) async throws -> Account? {
         let api = api(testNet: testNet)
@@ -218,5 +252,9 @@ public extension Kit {
     enum SendError: Error {
         case noTransactionSender
         case invalidAsset
+    }
+    
+    enum SignError: Error {
+        case cantEncodeBase64
     }
 }
