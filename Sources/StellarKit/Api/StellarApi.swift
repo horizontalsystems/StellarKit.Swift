@@ -211,6 +211,31 @@ extension TxOperation.`Type` {
                 limit: op.limit.flatMap { Decimal(string: $0) } ?? 0,
                 liquidityPoolId: op.liquidityPoolId
             ))
+        // Covers both strict-send and strict-receive: PathPaymentStrictSendOperationResponse
+        // subclasses PathPaymentOperationResponse (the strict-receive response).
+        case let op as PathPaymentOperationResponse:
+            self = .pathPayment(data: .init(
+                sourceAmount: Decimal(string: op.sourceAmount) ?? 0,
+                sourceAsset: Self.asset(type: op.sourceAssetType ?? AssetTypeAsString.NATIVE, code: op.sourceAssetCode, issuer: op.sourceAssetIssuer),
+                amount: Decimal(string: op.amount) ?? 0,
+                asset: Self.asset(type: op.assetType, code: op.assetCode, issuer: op.assetIssuer),
+                from: op.from,
+                to: op.to
+            ))
+        case let op as InvokeHostFunctionOperationResponse:
+            self = .invokeHostFunction(data: .init(
+                // e.g. "HostFunctionTypeHostFunctionTypeInvokeContract" -> "InvokeContract"
+                function: op.function.components(separatedBy: "HostFunctionType").last ?? op.function,
+                balanceChanges: (op.assetBalanceChanges ?? []).map { change in
+                    .init(
+                        type: change.type,
+                        asset: Self.asset(type: change.assetType, code: change.assetCode, issuer: change.assetIssuer),
+                        from: change.from,
+                        to: change.to,
+                        amount: Decimal(string: change.amount) ?? 0
+                    )
+                }
+            ))
         default:
             self = .unknown(rawType: operation.operationTypeString.components(separatedBy: "_").map(\.capitalized).joined(separator: " "))
         }

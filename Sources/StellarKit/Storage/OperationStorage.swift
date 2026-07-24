@@ -52,6 +52,15 @@ class OperationStorage {
             )
         }
 
+        // pathPayment / invokeHostFunction / changeTrust tagging landed after operations were
+        // already synced and stored (typed `unknown`, untagged). Sync is cursor-based and never
+        // refetches, so drop everything once — the next sync re-downloads and re-tags history.
+        migrator.registerMigration("Resync for pathPayment and invokeHostFunction") { db in
+            try db.execute(sql: "DELETE FROM tag")
+            try db.execute(sql: "DELETE FROM txOperation")
+            try db.execute(sql: "DELETE FROM operationSyncState")
+        }
+
         return migrator
     }
 }
